@@ -8,19 +8,21 @@ import com.example.noticeboard.account.user.constant.UserRole;
 import com.example.noticeboard.admin.visitant.util.SingleVisitInterceptor;
 import com.example.noticeboard.common.exception.FilterExceptionHandler;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.HttpSecurityBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractAuthenticationFilterConfigurer;
-import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -33,6 +35,18 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
     private final CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        System.out.println("========== OAuth 설정 디버깅 ==========");
+        
+        /* 기존 코드 주석 처리: System.out.println("DEBUG GOOGLE ID: " + System.getenv("GOOGLE_CLIENT_ID")); */
+        // .env에서 System.setProperty로 저장했으니 getProperty로 불러와야 해!
+        System.out.println("DEBUG GOOGLE ID: " + System.getProperty("GOOGLE_CLIENT_ID"));
+        System.out.println("DEBUG GOOGLE SECRET: " + System.getProperty("GOOGLE_CLIENT_SECRET"));
+        
+        System.out.println("=====================================");
+    }
+
     @Bean
     public BCryptPasswordEncoder encodePassword() {
         return new BCryptPasswordEncoder();
@@ -40,6 +54,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    	http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
         http.csrf().disable()
                 .httpBasic().disable()
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -55,12 +70,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/**").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/**").hasAnyRole(UserRole.USER.name(), UserRole.MANAGER.name())
                 .and()
-                // Configures authentication support using an OAuth 2.0 and/or OpenID Connect 1.0 Provider. 
                 .oauth2Login().loginPage("/authorization/denied")
-                // loginPage가 리턴하는 OAuth2LoginConfigurer는 다음과 같음.
-// public final class OAuth2LoginConfigurer<B extends HttpSecurityBuilder<B>>
-// extends AbstractAuthenticationFilterConfigurer<B, org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer<B>, OAuth2LoginAuthenticationFilter>
-                // OAuth2LoginAuthenticationFilter
                 .successHandler(oauth2AuthenticationSuccessHandler)
                 .failureHandler(customAuthenticationFailureHandler)
                 .userInfoEndpoint().userService(oauth2UserService);
@@ -76,5 +86,19 @@ public class SecurityConfig {
                 UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+    
+    
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of("http://localhost:3000")); 
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")); // PATCH도 추가 권장
+        config.setAllowedHeaders(List.of("*")); // 모든 헤더 허용 추가 [cite: 2026-02-15]
+        config.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

@@ -21,7 +21,7 @@ public class CookieSupport {
                 .secure(true)
                 .domain(DOMAIN_URL)
                 .httpOnly(true)
-                .sameSite("none")
+                .sameSite("Lax")
                 .build();
     }
 
@@ -32,7 +32,7 @@ public class CookieSupport {
                 .secure(true)
                 .domain(DOMAIN_URL)
                 .httpOnly(true)
-                .sameSite("none")
+                .sameSite("Lax")
                 .build();
     }
 
